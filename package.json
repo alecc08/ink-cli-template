@@ -33,7 +33,6 @@
     "url": "https://github.com/alecc08/ink-cli-template.git"
   },
   "dependencies": {
-    "@alecc08/ink-cli-template": "^0.0.1",
     "chalk": "^5.3.0",
     "ink": "^5.0.0",
     "ink-big-text": "^2.0.0",
