@@ -6,8 +6,9 @@ import Dashboard from './components/Dashboard.js';
 import EntityForm from './components/EntityForm.js';
 import RequestList from './components/RequestList.js';
 import EntitySelector from './components/EntitySelector.js';
+import ConfirmationSummary from './components/ConfirmationSummary.js';
 
-export type View = 'SPLASH' | 'LOGIN_FLOW' | 'DASHBOARD' | 'MANAGE_TEAM_ADD' | 'MANAGE_TEAM_MODIFY_SELECT' | 'MANAGE_TEAM_MODIFY_FORM' | 'MANAGE_REPO_ADD' | 'MANAGE_REPO_MODIFY_SELECT' | 'MANAGE_REPO_MODIFY_FORM' | 'VIEW_REQUESTS';
+export type View = 'SPLASH' | 'LOGIN_FLOW' | 'DASHBOARD' | 'MANAGE_TEAM_ADD' | 'MANAGE_TEAM_MODIFY_SELECT' | 'MANAGE_TEAM_MODIFY_FORM' | 'MANAGE_TEAM_CONFIRM' | 'MANAGE_REPO_ADD' | 'MANAGE_REPO_MODIFY_SELECT' | 'MANAGE_REPO_MODIFY_FORM' | 'MANAGE_REPO_CONFIRM' | 'VIEW_REQUESTS' | 'VIEW_REQUEST_DETAIL';
 
 export type Team = {
     id: string;
@@ -27,8 +28,10 @@ export type Request = {
     id: string;
     type: 'TEAM' | 'REPO';
     action: 'ADD' | 'MODIFY';
-    data: any;
+    data: Team | Repository;
+    previousData?: Team | Repository;  // For MODIFY actions
     status: 'PENDING';
+    createdAt: Date;
 };
 
 // Dummy Data
@@ -52,14 +55,43 @@ export default function App() {
     const [repos, setRepos] = useState<Repository[]>(INITIAL_REPOS);
     const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
+    // Confirmation flow state
+    const [pendingFormData, setPendingFormData] = useState<any>(null);
+    const [selectedRequestIndex, setSelectedRequestIndex] = useState<number | null>(null);
+
     const handleLogin = (name: string) => {
         setUser(name);
         setView('DASHBOARD');
     };
 
-    const handleRequestSubmit = (request: Request) => {
+    // Called when form completes - transitions to confirmation
+    const handleFormComplete = (formData: any) => {
+        setPendingFormData(formData);
+        // Navigate to confirmation screen based on current view
+        if (view.includes('TEAM')) {
+            setView('MANAGE_TEAM_CONFIRM');
+        } else {
+            setView('MANAGE_REPO_CONFIRM');
+        }
+    };
+
+    // Called when user confirms in confirmation screen
+    const handleRequestConfirm = () => {
+        if (!pendingFormData) return;
+
+        const request: Request = {
+            id: Math.random().toString(36).substr(2, 9),
+            type: view.includes('TEAM') ? 'TEAM' : 'REPO',
+            action: pendingFormData.action,
+            data: pendingFormData.data,
+            previousData: pendingFormData.previousData,
+            status: 'PENDING',
+            createdAt: new Date()
+        };
+
         setRequests([...requests, request]);
-        // Optimistically update local state for demo purposes if it's a modify
+
+        // Optimistically update local state
         if (request.action === 'MODIFY') {
             if (request.type === 'TEAM') {
                 setTeams(teams.map(t => t.id === request.data.id ? { ...t, ...request.data } : t));
@@ -69,11 +101,19 @@ export default function App() {
         } else {
             // Add
             if (request.type === 'TEAM') {
-                setTeams([...teams, request.data]);
+                setTeams([...teams, request.data as Team]);
             } else {
-                setRepos([...repos, request.data]);
+                setRepos([...repos, request.data as Repository]);
             }
         }
+
+        setPendingFormData(null);
+        setView('DASHBOARD');
+    };
+
+    // Called when user cancels confirmation
+    const handleRequestCancel = () => {
+        setPendingFormData(null);
         setView('DASHBOARD');
     };
 
@@ -90,6 +130,7 @@ export default function App() {
             {view === 'DASHBOARD' && user && (
                 <Dashboard
                     user={user}
+                    requestCount={requests.length}
                     onSelect={(option: string) => {
                         if (option === 'manage_teams_add') setView('MANAGE_TEAM_ADD');
                         if (option === 'manage_teams_modify') setView('MANAGE_TEAM_MODIFY_SELECT');
@@ -128,7 +169,7 @@ export default function App() {
                     type="TEAM"
                     action={view === 'MANAGE_TEAM_ADD' ? 'ADD' : 'MODIFY'}
                     initialData={view === 'MANAGE_TEAM_MODIFY_FORM' ? getEntityToModify() : undefined}
-                    onSubmit={handleRequestSubmit}
+                    onComplete={handleFormComplete}
                     onCancel={() => setView('DASHBOARD')}
                 />
             )}
@@ -137,8 +178,30 @@ export default function App() {
                     type="REPO"
                     action={view === 'MANAGE_REPO_ADD' ? 'ADD' : 'MODIFY'}
                     initialData={view === 'MANAGE_REPO_MODIFY_FORM' ? getEntityToModify() : undefined}
-                    onSubmit={handleRequestSubmit}
+                    onComplete={handleFormComplete}
                     onCancel={() => setView('DASHBOARD')}
+                />
+            )}
+
+            {/* Confirmation Screens */}
+            {view === 'MANAGE_TEAM_CONFIRM' && pendingFormData && (
+                <ConfirmationSummary
+                    type="TEAM"
+                    action={pendingFormData.action}
+                    data={pendingFormData.data}
+                    previousData={pendingFormData.previousData}
+                    onConfirm={handleRequestConfirm}
+                    onCancel={handleRequestCancel}
+                />
+            )}
+            {view === 'MANAGE_REPO_CONFIRM' && pendingFormData && (
+                <ConfirmationSummary
+                    type="REPO"
+                    action={pendingFormData.action}
+                    data={pendingFormData.data}
+                    previousData={pendingFormData.previousData}
+                    onConfirm={handleRequestConfirm}
+                    onCancel={handleRequestCancel}
                 />
             )}
 

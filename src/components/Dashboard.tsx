@@ -1,13 +1,21 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import SelectInput from 'ink-select-input';
+import Gradient from 'ink-gradient';
+import { ICONS, COLORS } from '../theme.js';
 
-export default function Dashboard({ user, onSelect }: { user: string, onSelect: (item: string) => void }) {
+type DashboardProps = {
+	user: string;
+	onSelect: (item: string) => void;
+	requestCount?: number;
+};
+
+export default function Dashboard({ user, onSelect, requestCount = 0 }: DashboardProps) {
     const items = [
-        { label: 'Manage Teams', value: 'manage_teams' },
-        { label: 'Manage Repositories', value: 'manage_repos' },
-        { label: 'View Requests', value: 'view_requests' },
-        { label: 'Exit', value: 'exit' }
+        { label: `${ICONS.team} Manage Teams`, value: 'manage_teams' },
+        { label: `${ICONS.repo} Manage Repositories`, value: 'manage_repos' },
+        { label: `${ICONS.requests} View Requests${requestCount > 0 ? ` (${requestCount})` : ''}`, value: 'view_requests' },
+        { label: `${ICONS.exit} Exit`, value: 'exit' }
     ];
 
     const [activeMenu, setActiveMenu] = React.useState('main');
@@ -41,25 +49,38 @@ export default function Dashboard({ user, onSelect }: { user: string, onSelect: 
     const getItems = () => {
         if (activeMenu === 'main') return items;
         if (activeMenu === 'teams') return [
-            { label: 'Add Team', value: 'manage_teams_add' },
-            { label: 'Modify Team', value: 'manage_teams_modify' },
-            { label: 'Back', value: 'back' }
+            { label: `${ICONS.add} Add Team`, value: 'manage_teams_add' },
+            { label: `${ICONS.modify} Modify Team`, value: 'manage_teams_modify' },
+            { label: '← Back', value: 'back' }
         ];
         if (activeMenu === 'repos') return [
-            { label: 'Add Repository', value: 'manage_repos_add' },
-            { label: 'Modify Repository', value: 'manage_repos_modify' },
-            { label: 'Back', value: 'back' }
+            { label: `${ICONS.add} Add Repository`, value: 'manage_repos_add' },
+            { label: `${ICONS.modify} Modify Repository`, value: 'manage_repos_modify' },
+            { label: '← Back', value: 'back' }
         ];
         return [];
     };
 
+    const menuTitle = activeMenu === 'main' ? 'MAIN MENU' :
+                      activeMenu === 'teams' ? 'TEAM MANAGEMENT' :
+                      'REPOSITORY MANAGEMENT';
+
     return (
         <Box flexDirection="column">
-            <Box marginBottom={1}>
-                <Text>Welcome, <Text bold color="green">{user}</Text>!</Text>
+            <Box marginBottom={1} justifyContent="center">
+                <Gradient name="morning">
+                    <Text>Welcome, {user}! ⚡</Text>
+                </Gradient>
             </Box>
-            <Box borderStyle="round" padding={1}>
-                <SelectInput items={getItems()} onSelect={handleSelect} />
+            <Box borderStyle="double" padding={1} borderColor={COLORS.primary}>
+                <Box flexDirection="column">
+                    <Box marginBottom={1} justifyContent="center">
+                        <Text bold color={COLORS.highlight}>
+                            {menuTitle}
+                        </Text>
+                    </Box>
+                    <SelectInput items={getItems()} onSelect={handleSelect} />
+                </Box>
             </Box>
         </Box>
     );

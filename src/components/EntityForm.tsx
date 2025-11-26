@@ -2,16 +2,17 @@ import { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import SelectInput from 'ink-select-input';
+import { COLORS } from '../theme.js';
 
 type EntityFormProps = {
     type: 'TEAM' | 'REPO';
     action: 'ADD' | 'MODIFY';
     initialData?: any;
-    onSubmit: (data: any) => void;
+    onComplete: (data: any) => void;
     onCancel: () => void;
 };
 
-export default function EntityForm({ type, action, initialData, onSubmit, onCancel }: EntityFormProps) {
+export default function EntityForm({ type, action, initialData, onComplete, onCancel }: EntityFormProps) {
     const [step, setStep] = useState(0);
     const [formData, setFormData] = useState<any>(initialData || {});
 
@@ -45,13 +46,27 @@ export default function EntityForm({ type, action, initialData, onSubmit, onCanc
         }
     }, [currentField, formData]);
 
-    useInput((_input, key) => {
+    useInput((input, key) => {
         if (key.escape) {
             onCancel();
         }
         // For multi-select, enter confirms selection
         if (currentField && currentField.type === 'multi-select' && key.return) {
             handleNext(selectedOptions);
+        }
+        // For multi-select, number keys toggle options
+        if (currentField && currentField.type === 'multi-select') {
+            const num = parseInt(input);
+            if (!isNaN(num) && num > 0 && num <= (currentField.options?.length || 0)) {
+                const opt = currentField.options![num - 1];
+                if (opt) {
+                    if (selectedOptions.includes(opt)) {
+                        setSelectedOptions(selectedOptions.filter(o => o !== opt));
+                    } else {
+                        setSelectedOptions([...selectedOptions, opt]);
+                    }
+                }
+            }
         }
     });
 
@@ -64,12 +79,14 @@ export default function EntityForm({ type, action, initialData, onSubmit, onCanc
             setStep(step + 1);
             setSelectedOptions([]);
         } else {
-            onSubmit({
-                id: initialData?.id || Math.random().toString(36).substr(2, 9),
-                type,
+            // Pass the complete data to parent for confirmation
+            onComplete({
                 action,
-                data: newFormData,
-                status: 'PENDING'
+                data: {
+                    id: initialData?.id || Math.random().toString(36).substr(2, 9),
+                    ...newFormData
+                },
+                previousData: initialData  // For MODIFY actions
             });
         }
     };
@@ -112,52 +129,25 @@ export default function EntityForm({ type, action, initialData, onSubmit, onCanc
                     <Box marginTop={1}>
                         <Text dimColor>Use 1-{options.length} to toggle, Enter to confirm</Text>
                     </Box>
-                    {/* Hacky input for number selection */}
-                    <Box display="none">
-                        <TextInput value="" onChange={(val) => {
-                            const num = parseInt(val);
-                            if (!isNaN(num) && num > 0 && num <= options.length) {
-                                const opt = options[num - 1];
-                                if (opt) {
-                                    if (selectedOptions.includes(opt)) {
-                                        setSelectedOptions(selectedOptions.filter(o => o !== opt));
-                                    } else {
-                                        setSelectedOptions([...selectedOptions, opt]);
-                                    }
-                                }
-                            }
-                        }} />
-                    </Box>
                 </Box>
             );
         }
         return null;
     };
 
-    // Custom handler for multi-select keys since TextInput is hidden/not focused properly for raw keys
-    useInput((input, _key) => {
-        if (currentField && currentField.type === 'multi-select') {
-            const num = parseInt(input);
-            if (!isNaN(num) && num > 0 && num <= (currentField.options?.length || 0)) {
-                const opt = currentField.options![num - 1];
-                if (opt) {
-                    if (selectedOptions.includes(opt)) {
-                        setSelectedOptions(selectedOptions.filter(o => o !== opt));
-                    } else {
-                        setSelectedOptions([...selectedOptions, opt]);
-                    }
-                }
-            }
-        }
-    });
-
     if (!currentField) return null;
 
+    const actionColor = action === 'ADD' ? COLORS.add : COLORS.modify;
+    const progress = `Step ${step + 1} of ${fields.length}`;
+
     return (
-        <Box flexDirection="column" borderStyle="round" padding={1}>
-            <Text bold underline>{action} {type}</Text>
+        <Box flexDirection="column" borderStyle="round" padding={1} borderColor={actionColor}>
+            <Box justifyContent="space-between" marginBottom={1}>
+                <Text bold underline color={actionColor}>{action} {type}</Text>
+                <Text dimColor>{progress}</Text>
+            </Box>
             <Box marginTop={1}>
-                <Text>{currentField.name}: </Text>
+                <Text color={COLORS.highlight}>{currentField.name}: </Text>
                 {renderInput()}
             </Box>
             <Box marginTop={1}>
