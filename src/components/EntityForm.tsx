@@ -39,12 +39,20 @@ export default function EntityForm({ type, action, initialData, onComplete, onCa
     const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
 
     useEffect(() => {
-        if (currentField && currentField.type === 'multi-select' && formData[currentField.name.toLowerCase()]) {
+        // Only reset selectedOptions when the step changes or when entering a multi-select field
+        if (currentField && currentField.type === 'multi-select') {
             const saved = formData[currentField.name.toLowerCase()];
-            if (Array.isArray(saved)) setSelectedOptions(saved);
-            else if (typeof saved === 'string') setSelectedOptions(saved.split(', '));
+            if (saved) {
+                if (Array.isArray(saved)) {
+                    setSelectedOptions(saved);
+                } else if (typeof saved === 'string') {
+                    setSelectedOptions(saved.split(', '));
+                }
+            } else {
+                setSelectedOptions([]);
+            }
         }
-    }, [currentField, formData]);
+    }, [step]); // Changed dependency to step instead of currentField and formData
 
     useInput((input, key) => {
         if (key.escape) {
